@@ -10,9 +10,11 @@ FRP_VERSION="" # Will be determined dynamically
 
 # Function to print messages
 print_message() {
-    echo "--------------------------------------------------"
+    echo
+    echo "=================================================="
     echo "$1"
-    echo "--------------------------------------------------"
+    echo "=================================================="
+    echo
 }
 
 # Function to detect OS and architecture
@@ -40,7 +42,8 @@ configure_server() {
     read -p "Enter bind port [default: 7000]: " bindPort
     bindPort=${bindPort:-7000}
 
-    read -p "Enter authentication token: " authToken
+    read -s -p "Enter authentication token: " authToken
+    echo
 
     read -p "Enable dashboard? [y/N]: " enableDashboard
     if [[ "$enableDashboard" == "y" || "$enableDashboard" == "Y" ]]; then
@@ -59,8 +62,8 @@ configure_server() {
 
     # Backup existing config
     if [ -f "${FRP_CONFIG_DIR}/frps.toml" ]; then
-        sudo mv "${FRP_CONFIG_DIR}/frps.toml" "${FRP_CONFIG_DIR}/frps.toml.bak"
-        echo "Backed up existing frps.toml to frps.toml.bak"
+        sudo mv "${FRP_CONFIG_DIR}/frps.toml" "${FRP_CONFIG_DIR}/frps.toml.bak.$(date +%s)"
+        echo "Backed up existing frps.toml to frps.toml.bak.$(date +%s)"
     fi
 
     # Write new config
@@ -90,6 +93,7 @@ EOL
     fi
 
     print_message "frps.toml created successfully!"
+    post_setup_feedback "server"
 }
 
 # Function to configure frpc
@@ -101,7 +105,8 @@ configure_client() {
     read -p "Enter server port [default: 7000]: " serverPort
     serverPort=${serverPort:-7000}
 
-    read -p "Enter authentication token: " authToken
+    read -s -p "Enter authentication token: " authToken
+    echo
 
     read -p "Enter transport protocol (tcp, kcp, quic) [default: tcp]: " transportProtocol
     transportProtocol=${transportProtocol:-tcp}
@@ -128,8 +133,8 @@ configure_client() {
 
     # Backup existing config
     if [ -f "${FRP_CONFIG_DIR}/frpc.toml" ]; then
-        sudo mv "${FRP_CONFIG_DIR}/frpc.toml" "${FRP_CONFIG_DIR}/frpc.toml.bak"
-        echo "Backed up existing frpc.toml to frpc.toml.bak"
+        sudo mv "${FRP_CONFIG_DIR}/frpc.toml" "${FRP_CONFIG_DIR}/frpc.toml.bak.$(date +%s)"
+        echo "Backed up existing frpc.toml to frpc.toml.bak.$(date +%s)"
     fi
 
     # Write new config
@@ -159,6 +164,112 @@ remotePort = $remotePort
 EOL
 
     print_message "frpc.toml created successfully!"
+    post_setup_feedback "client"
+}
+
+# Function to manage services
+manage_services() {
+    while true; do
+        echo
+        echo "====================================="
+        echo "        Service Management"
+        echo "====================================="
+        echo "1. Create systemd services"
+        echo "2. Start a service"
+        echo "3. Stop a service"
+        echo "4. Restart a service"
+        echo "5. Check service status"
+        echo "6. View service logs"
+        echo "7. Back to main menu"
+        echo "-------------------------------------"
+        read -p "Enter your choice [1-7]: " service_choice
+
+        case $service_choice in
+            1) create_systemd_services ;;
+            2) manage_service "start" ;;
+            3) manage_service "stop" ;;
+            4) manage_service "restart" ;;
+            5) manage_service "status" ;;
+            6) manage_service "logs" ;;
+            7) break ;;
+            *) echo "Invalid option. Please try again." ;;
+        esac
+    done
+}
+
+create_systemd_services() {
+    print_message "Creating systemd services"
+
+    # frps.service
+    sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
+[Unit]
+Description=FRP Server
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Restart=on-failure
+RestartSec=5s
+ExecStart=${FRP_INSTALL_DIR}/frps -c ${FRP_CONFIG_DIR}/frps.toml
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+    # frpc.service
+    sudo bash -c "cat > /etc/systemd/system/frpc.service" <<EOL
+[Unit]
+Description=FRP Client
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Restart=on-failure
+RestartSec=5s
+ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc.toml
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+    sudo systemctl daemon-reload
+    print_message "Systemd services created successfully!"
+    echo "You can now enable and start the services."
+}
+
+manage_service() {
+    action=$1
+    read -p "Enter service name (frps or frpc): " service_name
+
+    if [ "$service_name" != "frps" ] && [ "$service_name" != "frpc" ]; then
+        echo "Invalid service name."
+        return
+    fi
+
+    case $action in
+        start) sudo systemctl start $service_name ;;
+        stop) sudo systemctl stop $service_name ;;
+        restart) sudo systemctl restart $service_name ;;
+        status) sudo systemctl status $service_name ;;
+        logs) sudo journalctl -u $service_name -f ;;
+    esac
+}
+
+# Function to provide post-setup feedback
+post_setup_feedback() {
+    type=$1
+
+    if [ "$type" == "server" ]; then
+        if [[ "$enableDashboard" == "y" || "$enableDashboard" == "Y" ]]; then
+            echo "Dashboard URL: http://<server_ip>:$dashboardPort"
+        fi
+        echo "frps service is configured. You can start it from the 'Manage Services' menu."
+    elif [ "$type" == "client" ]; then
+        echo "frpc service is configured. You can start it from the 'Manage Services' menu."
+        echo "To test connectivity, you can use: curl -v telnet://<server_ip>:$remotePort"
+    fi
 }
 
 # Function to install or update FRP
@@ -181,12 +292,26 @@ install_update_frp() {
     echo "Downloading from: $DOWNLOAD_URL"
 
     # Download and extract
-    curl -L -o "/tmp/${FRP_FILENAME}.tar.gz" "$DOWNLOAD_URL"
-    tar -xzf "/tmp/${FRP_FILENAME}.tar.gz" -C /tmp
+    if ! curl -L -o "/tmp/${FRP_FILENAME}.tar.gz" "$DOWNLOAD_URL"; then
+        echo "Error: Failed to download FRP."
+        exit 1
+    fi
+    
+    if ! tar -xzf "/tmp/${FRP_FILENAME}.tar.gz" -C /tmp; then
+        echo "Error: Failed to extract FRP."
+        exit 1
+    fi
 
     # Install binaries
-    sudo install "/tmp/${FRP_FILENAME}/frps" "${FRP_INSTALL_DIR}/frps"
-    sudo install "/tmp/${FRP_FILENAME}/frpc" "${FRP_INSTALL_DIR}/frpc"
+    if ! sudo install "/tmp/${FRP_FILENAME}/frps" "${FRP_INSTALL_DIR}/frps"; then
+        echo "Error: Failed to install frps."
+        exit 1
+    fi
+    
+    if ! sudo install "/tmp/${FRP_FILENAME}/frpc" "${FRP_INSTALL_DIR}/frpc"; then
+        echo "Error: Failed to install frpc."
+        exit 1
+    fi
 
     # Cleanup
     rm -rf "/tmp/${FRP_FILENAME}" "/tmp/${FRP_FILENAME}.tar.gz"
@@ -197,6 +322,7 @@ install_update_frp() {
 # Function to show the main menu
 show_menu() {
     while true; do
+        echo
         echo "====================================="
         echo "  FRP Installer and Management"
         echo "====================================="
@@ -212,7 +338,7 @@ show_menu() {
             1) install_update_frp ;;
             2) configure_server ;;
             3) configure_client ;;
-            4) echo "Not yet implemented." ;;
+            4) manage_services ;;
             5) exit 0 ;;
             *) echo "Invalid option. Please try again." ;;
         esac
