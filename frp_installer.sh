@@ -32,6 +32,135 @@ detect_os_arch() {
 
 # --- Main Functions ---
 
+# Function to configure frps
+configure_server() {
+    print_message "Configuring FRP Server (frps)"
+
+    # Prompt for configuration details
+    read -p "Enter bind port [default: 7000]: " bindPort
+    bindPort=${bindPort:-7000}
+
+    read -p "Enter authentication token: " authToken
+
+    read -p "Enable dashboard? [y/N]: " enableDashboard
+    if [[ "$enableDashboard" == "y" || "$enableDashboard" == "Y" ]]; then
+        read -p "Enter dashboard port [default: 7500]: " dashboardPort
+        dashboardPort=${dashboardPort:-7500}
+        read -p "Enter dashboard user: " dashboardUser
+        read -s -p "Enter dashboard password: " dashboardPassword
+        echo
+    fi
+
+    read -p "Enable KCP transport protocol? [y/N]: " enableKcp
+    read -p "Enable QUIC transport protocol? [y/N]: " enableQuic
+
+    # Create config directory if it doesn't exist
+    sudo mkdir -p "$FRP_CONFIG_DIR"
+
+    # Backup existing config
+    if [ -f "${FRP_CONFIG_DIR}/frps.toml" ]; then
+        sudo mv "${FRP_CONFIG_DIR}/frps.toml" "${FRP_CONFIG_DIR}/frps.toml.bak"
+        echo "Backed up existing frps.toml to frps.toml.bak"
+    fi
+
+    # Write new config
+    sudo bash -c "cat > ${FRP_CONFIG_DIR}/frps.toml" <<EOL
+bindPort = $bindPort
+auth.token = "$authToken"
+EOL
+
+    if [[ "$enableDashboard" == "y" || "$enableDashboard" == "Y" ]]; then
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
+webServer.port = $dashboardPort
+webServer.user = "$dashboardUser"
+webServer.password = "$dashboardPassword"
+EOL
+    fi
+    
+    if [[ "$enableKcp" == "y" || "$enableKcp" == "Y" ]]; then
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
+transport.kcp.bindPort = $bindPort
+EOL
+    fi
+
+    if [[ "$enableQuic" == "y" || "$enableQuic" == "Y" ]]; then
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
+transport.quic.bindPort = $bindPort
+EOL
+    fi
+
+    print_message "frps.toml created successfully!"
+}
+
+# Function to configure frpc
+configure_client() {
+    print_message "Configuring FRP Client (frpc)"
+
+    # Prompt for configuration details
+    read -p "Enter server address: " serverAddr
+    read -p "Enter server port [default: 7000]: " serverPort
+    serverPort=${serverPort:-7000}
+
+    read -p "Enter authentication token: " authToken
+
+    read -p "Enter transport protocol (tcp, kcp, quic) [default: tcp]: " transportProtocol
+    transportProtocol=${transportProtocol:-tcp}
+
+    read -p "Enable Admin UI? [y/N]: " enableAdminUI
+    if [[ "$enableAdminUI" == "y" || "$enableAdminUI" == "Y" ]]; then
+        read -p "Enter Admin UI port [default: 7501]: " adminUIPort
+        adminUIPort=${adminUIPort:-7501}
+        read -p "Enter Admin UI user: " adminUIUser
+        read -s -p "Enter Admin UI password: " adminUIPassword
+        echo
+    fi
+
+    print_message "Define a proxy"
+    read -p "Proxy type (tcp, udp, http, https) [default: tcp]: " proxyType
+    proxyType=${proxyType:-tcp}
+    read -p "Local IP [default: 127.0.0.1]: " localIP
+    localIP=${localIP:-127.0.0.1}
+    read -p "Local port: " localPort
+    read -p "Remote port: " remotePort
+
+    # Create config directory if it doesn't exist
+    sudo mkdir -p "$FRP_CONFIG_DIR"
+
+    # Backup existing config
+    if [ -f "${FRP_CONFIG_DIR}/frpc.toml" ]; then
+        sudo mv "${FRP_CONFIG_DIR}/frpc.toml" "${FRP_CONFIG_DIR}/frpc.toml.bak"
+        echo "Backed up existing frpc.toml to frpc.toml.bak"
+    fi
+
+    # Write new config
+    sudo bash -c "cat > ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+serverAddr = "$serverAddr"
+serverPort = $serverPort
+auth.token = "$authToken"
+transport.protocol = "$transportProtocol"
+EOL
+
+    if [[ "$enableAdminUI" == "y" || "$enableAdminUI" == "Y" ]]; then
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+webServer.port = $adminUIPort
+webServer.user = "$adminUIUser"
+webServer.password = "$adminUIPassword"
+EOL
+    fi
+
+    sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+
+[[proxies]]
+name = "${proxyType}-proxy"
+type = "$proxyType"
+localIP = "$localIP"
+localPort = $localPort
+remotePort = $remotePort
+EOL
+
+    print_message "frpc.toml created successfully!"
+}
+
 # Function to install or update FRP
 install_update_frp() {
     print_message "Installing/Updating FRP"
@@ -81,8 +210,8 @@ show_menu() {
 
         case $choice in
             1) install_update_frp ;;
-            2) echo "Not yet implemented." ;;
-            3) echo "Not yet implemented." ;;
+            2) configure_server ;;
+            3) configure_client ;;
             4) echo "Not yet implemented." ;;
             5) exit 0 ;;
             *) echo "Invalid option. Please try again." ;;
