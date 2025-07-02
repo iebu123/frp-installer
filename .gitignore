@@ -1,0 +1,45 @@
+# Ignore shell history and editor swap files
+*.swp
+*.swo
+*~
+
+# Ignore backup and temp files
+*.bak
+*.tmp
+*.temp
+
+# Ignore logs
+*.log
+
+# Ignore systemd unit file symlinks (if any are created in repo)
+/etc/systemd/system/frps.service
+/etc/systemd/system/frpc.service
+
+# Ignore config outputs (if generated in repo)
+/etc/frp/frps.toml
+/etc/frp/frpc.toml
+
+# Ignore macOS system files
+.DS_Store
+
+# Ignore VSCode settings
+.vscode/
+
+# Ignore node_modules just in case
+node_modules/
+
+# Ignore Python cache (if any scripts are added)
+__pycache__/
+*.pyc
+
+# Ignore tarballs and archives
+tmp/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.gz
+
+# Ignore output binaries (if any are built here)
+frps
+frpc
