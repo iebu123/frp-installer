@@ -372,7 +372,8 @@ Type=simple
 User=nobody
 Restart=on-failure
 RestartSec=5s
-ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc.toml
+ExecStart=/bin/bash -c "sed 's/__SERVER_ADDR__/%i/g' ${FRP_CONFIG_DIR}/frpc.toml > /tmp/frpc_temp_%i.toml && ${FRP_INSTALL_DIR}/frpc -c /tmp/frpc_temp_%i.toml"
+ExecStopPost=/bin/rm -f /tmp/frpc_temp_%i.toml
 
 [Install]
 WantedBy=multi-user.target
