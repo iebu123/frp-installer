@@ -42,8 +42,13 @@ configure_server() {
     read -p "Enter bind port [default: 7000]: " bindPort
     bindPort=${bindPort:-7000}
 
-    read -s -p "Enter authentication token: " authToken
-    echo
+    read -p "Enable authentication? [y/N]: " enableAuth
+    if [[ "$enableAuth" == "y" || "$enableAuth" == "Y" ]]; then
+        read -s -p "Enter authentication token (must be the same on client): " authToken
+        echo
+    else
+        authToken=""
+    fi
 
     read -p "Enable dashboard? [y/N]: " enableDashboard
     if [[ "$enableDashboard" == "y" || "$enableDashboard" == "Y" ]]; then
@@ -69,8 +74,13 @@ configure_server() {
     # Write new config
     sudo bash -c "cat > ${FRP_CONFIG_DIR}/frps.toml" <<EOL
 bindPort = $bindPort
+EOL
+
+    if [ -n "$authToken" ]; then
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
 auth.token = "$authToken"
 EOL
+    fi
 
     if [[ "$enableDashboard" == "y" || "$enableDashboard" == "Y" ]]; then
         sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
@@ -106,8 +116,13 @@ configure_client() {
     read -p "Enter server port [default: 7000]: " serverPort
     serverPort=${serverPort:-7000}
 
-    read -s -p "Enter authentication token: " authToken
-    echo
+    read -p "Is authentication enabled on the server? [y/N]: " enableAuth
+    if [[ "$enableAuth" == "y" || "$enableAuth" == "Y" ]]; then
+        read -s -p "Enter authentication token (must be the same on server): " authToken
+        echo
+    else
+        authToken=""
+    fi
 
     read -p "Enter transport protocol (tcp, kcp, quic) [default: tcp]: " transportProtocol
     transportProtocol=${transportProtocol:-tcp}
@@ -142,9 +157,14 @@ configure_client() {
     sudo bash -c "cat > ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
 serverAddr = "$serverAddr"
 serverPort = $serverPort
-auth.token = "$authToken"
 transport.protocol = "$transportProtocol"
 EOL
+
+    if [ -n "$authToken" ]; then
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+auth.token = "$authToken"
+EOL
+    fi
 
     if [[ "$enableAdminUI" == "y" || "$enableAdminUI" == "Y" ]]; then
         sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
