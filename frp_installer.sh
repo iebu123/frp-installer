@@ -398,7 +398,19 @@ install_update_frp() {
 
 # Function to show the main menu
 show_menu() {
+    local is_first_run=true
     while true; do
+        if [ "$is_first_run" = true ]; then
+            is_first_run=false
+        else
+            echo
+            read -p "Return to the main menu? The screen will be cleared. (Y/n): " return_to_menu
+            if [[ "$return_to_menu" == "n" || "$return_to_menu" == "N" ]]; then
+                exit 0
+            fi
+        fi
+
+        clear
         echo
         echo "====================================="
         echo "  FRP Installer and Management"
