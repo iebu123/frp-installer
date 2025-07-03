@@ -293,6 +293,8 @@ type = "$proxyType"
 localIP = "$localIP"
 localPort = {{ \$v.First }}
 remotePort = {{ \$v.Second }}
+loadBalancer.group = "group-$clientName-{{ \$v.First }}"
+loadBalancer.groupKey = "group-$clientName-{{ \$v.First }}"
 {{- end }}
 EOL
         else
@@ -308,6 +310,8 @@ type = "$proxyType"
 localIP = "$localIP"
 localPort = $localPort
 remotePort = $remotePort
+loadBalancer.group = "group-$clientName-$localPort"
+loadBalancer.groupKey = "group-$clientName-$localPort"
 EOL
         fi
     done
