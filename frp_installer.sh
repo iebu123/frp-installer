@@ -186,7 +186,6 @@ EOL
             break
         fi
 
-        read -p "Proxy name: " proxyName
         read -p "Proxy type (tcp, udp, http, https) [default: tcp]: " proxyType
         proxyType=${proxyType:-tcp}
         read -p "Local IP [default: 127.0.0.1]: " localIP
@@ -202,6 +201,8 @@ EOL
             read -p "Remote port: " remotePort
             range=false
         fi
+
+        proxyName="proxy-${localPort}-${remotePort}"
 
         sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
 
