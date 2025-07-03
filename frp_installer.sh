@@ -259,10 +259,23 @@ manage_services() {
 }
 
 create_systemd_services() {
-    print_message "Creating systemd services"
+    print_message "Creating systemd service"
 
-    # frps.service
-    sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
+    while true; do
+        read -p "Which service do you want to create? (server/client): " service_to_create
+        case "$service_to_create" in
+            server|client)
+                break
+                ;;
+            *)
+                echo "Invalid input. Please enter 'server' or 'client'."
+                ;;
+        esac
+    done
+
+    if [ "$service_to_create" == "server" ]; then
+        # frps.service
+        sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
 [Unit]
 Description=FRP Server
 After=network.target
@@ -277,9 +290,10 @@ ExecStart=${FRP_INSTALL_DIR}/frps -c ${FRP_CONFIG_DIR}/frps.toml
 [Install]
 WantedBy=multi-user.target
 EOL
-
-    # frpc.service
-    sudo bash -c "cat > /etc/systemd/system/frpc.service" <<EOL
+        echo "frps.service created."
+    elif [ "$service_to_create" == "client" ]; then
+        # frpc.service
+        sudo bash -c "cat > /etc/systemd/system/frpc.service" <<EOL
 [Unit]
 Description=FRP Client
 After=network.target
@@ -294,10 +308,12 @@ ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc.toml
 [Install]
 WantedBy=multi-user.target
 EOL
+        echo "frpc.service created."
+    fi
 
     sudo systemctl daemon-reload
-    print_message "Systemd services created successfully!"
-    echo "You can now enable and start the services."
+    print_message "Systemd service creation process finished."
+    echo "You can now enable and start the service."
 }
 
 manage_service() {
