@@ -7,7 +7,7 @@ This script provides an interactive and automated way to install, configure, and
 You can download and run the script with a single command:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/iebu123/frp-installer/main/frp_installer.sh | bash
+bash <(curl -sSL https://raw.githubusercontent.com/iebu123/frp-installer/main/frp_installer.sh)
 ```
 
 ## Features
