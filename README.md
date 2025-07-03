@@ -32,6 +32,13 @@ To view the list of created client tunnels, run the following command:
 systemctl list-units --type=service | grep frpc-
 ```
 
+## How to view logs
+
+To view the last 50 lines of logs for a service:
+
+*   **For server:** `journalctl -u frps.service -n 50`
+*   **For client:** `journalctl -u frpc-<client_name>.service -n 50`
+
 ## Requirements
 
 -   `bash`
@@ -58,9 +65,9 @@ To set up your FRP tunnel, follow these steps:
     *   First, configure the server (e.g., located inside Iran, China, etc.), then create and start its service.
     *   Next, configure the client (e.g., on a server outside the country, with no restrictions).
 
-To add a second, third, or additional client service for other servers:
+To add a second, third, or additional client service for other servers: 
 
-*   Go to **Manage Services** (Option 4 in the main menu) and select **"Create new client service instance"**.
+*   Run again option 3 in main menu: Configure Client (frpc)
 
 ## Menu Options
 
