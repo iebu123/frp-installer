@@ -60,7 +60,11 @@ configure_server() {
     fi
 
     read -p "Enable KCP transport protocol? [y/N]: " enableKcp
-    read -p "Enable QUIC transport protocol? [y/N]: " enableQuic
+    if [[ "$enableKcp" == "y" || "$enableKcp" == "Y" ]]; then
+        enableQuic="n"
+    else
+        read -p "Enable QUIC transport protocol? [y/N]: " enableQuic
+    fi
 
     # Create config directory if it doesn't exist
     sudo mkdir -p "$FRP_CONFIG_DIR"
