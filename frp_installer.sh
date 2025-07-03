@@ -174,8 +174,33 @@ EOL
 
 # Function to configure frpc
 configure_client() {
-    local clientName=$1
-    local serverAddr=$2
+    print_message "Configuring FRP Client (frpc)"
+
+    local clientName
+    local serverAddr
+
+    while true; do
+        read -p "Enter a unique name for this client instance (e.g., myclient_server_ip): " clientName
+        if [ -z "$clientName" ]; then
+            echo "Client name cannot be empty. Please try again."
+            continue
+        fi
+
+        if [ -f "${FRP_CONFIG_DIR}/frpc-${clientName}.toml" ]; then
+            read -p "Warning: A configuration with the name '${clientName}' already exists. Overwrite? [y/N]: " overwrite_choice
+            if [[ "$overwrite_choice" != "y" && "$overwrite_choice" != "Y" ]]; then
+                echo "Aborting configuration for '${clientName}'. Please choose a different name."
+                return 1
+            fi
+        fi
+        break
+    done
+
+    read -p "Enter the server IP for this client instance: " serverAddr
+    if [ -z "$serverAddr" ]; then
+        echo "Server IP cannot be empty. Aborting."
+        return 1
+    fi
 
     print_message "Configuring FRP Client (frpc) for instance: ${clientName}"
 
@@ -352,18 +377,7 @@ create_systemd_services() {
                 break
                 ;;
             client)
-                read -p "Enter a unique name for this client instance (e.g., myclient_server_ip): " clientName
-                if [ -z "$clientName" ]; then
-                    echo "Client name cannot be empty. Aborting."
-                    return 1
-                fi
-                read -p "Enter the server IP for this client instance: " serverAddr
-                if [ -z "$serverAddr" ]; then
-                    echo "Server IP cannot be empty. Aborting."
-                    return 1
-                fi
-                # Call configure_client to handle config and service creation
-                configure_client "$clientName" "$serverAddr"
+                configure_client
                 break
                 ;;
             *)

@@ -29,7 +29,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/iebu123/frp-installer/main/fr
 
 To view the list of created client tunnels, run the following command:
 ```bash
-systemctl list-units --type=service | grep frpc-@
+systemctl list-units --type=service | grep frpc-
 ```
 
 ## Requirements
