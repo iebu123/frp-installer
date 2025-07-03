@@ -112,11 +112,36 @@ EOL
     echo "Verifying server configuration..."
     if sudo ${FRP_INSTALL_DIR}/frps verify -c ${FRP_CONFIG_DIR}/frps.toml &> /dev/null; then
         print_message "Server configuration is valid."
+        read -p "Do you want to create and start the frps service now? [Y/n]: " create_service
+        if [[ "$create_service" != "n" && "$create_service" != "N" ]]; then
+            print_message "Creating and starting frps service..."
+            sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
+[Unit]
+Description=FRP Server
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Restart=on-failure
+RestartSec=5s
+ExecStart=${FRP_INSTALL_DIR}/frps -c ${FRP_CONFIG_DIR}/frps.toml
+
+[Install]
+WantedBy=multi-user.target
+EOL
+            echo "frps.service created."
+            sudo systemctl daemon-reload
+            sudo systemctl enable frps
+            sudo systemctl start frps
+            print_message "Service frps status:"
+            sudo systemctl status frps
+        else
+            post_setup_feedback "server"
+        fi
     else
         print_message "Server configuration is invalid. Please check the settings."
     fi
-
-    post_setup_feedback "server"
 }
 
 # Function to configure frpc
@@ -237,11 +262,36 @@ EOL
     echo "Verifying client configuration..."
     if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc.toml &> /dev/null; then
         print_message "Client configuration is valid."
+        read -p "Do you want to create and start the frpc service now? [Y/n]: " create_service
+        if [[ "$create_service" != "n" && "$create_service" != "N" ]]; then
+            print_message "Creating and starting frpc service..."
+            sudo bash -c "cat > /etc/systemd/system/frpc.service" <<EOL
+[Unit]
+Description=FRP Client
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Restart=on-failure
+RestartSec=5s
+ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc.toml
+
+[Install]
+WantedBy=multi-user.target
+EOL
+            echo "frpc.service created."
+            sudo systemctl daemon-reload
+            sudo systemctl enable frpc
+            sudo systemctl start frpc
+            print_message "Service frpc status:"
+            sudo systemctl status frpc
+        else
+            post_setup_feedback "client"
+        fi
     else
         print_message "Client configuration is invalid. Please check the settings."
     fi
-
-    post_setup_feedback "client"
 }
 
 # Function to manage services
