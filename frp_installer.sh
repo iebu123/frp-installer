@@ -359,7 +359,8 @@ create_systemd_services() {
     if [ "$service_to_create" == "server" ]; then
         _create_systemd_unit_file "frps"
     elif [ "$service_to_create" == "client" ]; then
-        _create_systemd_unit_file "frpc"
+        read -p "Enter the server IP for the client service: " server_ip_for_client
+        _create_systemd_unit_file "frpc" "$server_ip_for_client"
     fi
 
     sudo systemctl daemon-reload
