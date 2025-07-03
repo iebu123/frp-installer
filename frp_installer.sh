@@ -428,16 +428,28 @@ show_menu() {
 
         clear
         echo
-        echo "====================================="
-        echo "  FRP Installer and Management"
-        echo "====================================="
-        echo "1. Install/Update FRP"
-        echo "2. Configure Server (frps)"
-        echo "3. Configure Client (frpc)"
-        echo "4. Manage Services"
-        echo "5. Exit"
-        echo "-------------------------------------"
-        read -p "Enter your choice [1-5]: " choice
+        echo '
+╔══════════════════════════════════════════════════════╗
+║                                                      ║
+║          ███████ ██████  ██████                      ║
+║          ██      ██   ██ ██   ██                     ║
+║          █████   ██████  ██████                      ║
+║          ██      ██   ██ ██                          ║
+║          ██      ██   ██ ██                          ║
+║                                                      ║
+╠══════════════════════════════════════════════════════╣
+║          FRP Installer and Management                ║
+╠══════════════════════════════════════════════════════╣
+║                                                      ║
+║   1. Install/Update FRP                              ║
+║   2. Configure Server (frps)                         ║
+║   3. Configure Client (frpc)                         ║
+║   4. Manage Services                                 ║
+║   5. Exit                                            ║
+║                                                      ║
+╚══════════════════════════════════════════════════════╝
+        '
+        read -p "   Enter your choice [1-5]: " choice
 
         case $choice in
             1) install_update_frp ;;
