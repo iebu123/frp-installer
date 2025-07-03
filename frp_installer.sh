@@ -74,6 +74,7 @@ EOL
 
     if [[ "$enableDashboard" == "y" || "$enableDashboard" == "Y" ]]; then
         sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
+webServer.addr = "0.0.0.0"
 webServer.port = $dashboardPort
 webServer.user = "$dashboardUser"
 webServer.password = "$dashboardPassword"
@@ -82,13 +83,13 @@ EOL
     
     if [[ "$enableKcp" == "y" || "$enableKcp" == "Y" ]]; then
         sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
-transport.kcp.bindPort = $bindPort
+kcpBindPort = $bindPort
 EOL
     fi
 
     if [[ "$enableQuic" == "y" || "$enableQuic" == "Y" ]]; then
         sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frps.toml" <<EOL
-transport.quic.bindPort = $bindPort
+quicBindPort = $bindPort
 EOL
     fi
 
@@ -147,6 +148,7 @@ EOL
 
     if [[ "$enableAdminUI" == "y" || "$enableAdminUI" == "Y" ]]; then
         sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+webServer.addr = "0.0.0.0"
 webServer.port = $adminUIPort
 webServer.user = "$adminUIUser"
 webServer.password = "$adminUIPassword"
