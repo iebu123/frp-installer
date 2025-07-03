@@ -37,6 +37,19 @@ bash <(curl -sSL https://raw.githubusercontent.com/iebu123/frp-installer/main/fr
     ./frp_installer.sh
     ```
 
+### Recommended Workflow
+
+To set up your FRP tunnel, follow these steps:
+
+1.  **Install the tunnel** (Option 1 in the main menu).
+2.  **Configure the server and client** (Options 2 and 3 in the main menu):
+    *   First, configure the server (e.g., located inside Iran, China, etc.), then create and start its service.
+    *   Next, configure the client (e.g., on a server outside the country, with no restrictions).
+
+To add a second, third, or additional client service for other servers:
+
+*   Go to **Manage Services** (Option 4 in the main menu) and select **"Create new client service instance"**.
+
 ## Menu Options
 
 The script presents a menu with the following options:
