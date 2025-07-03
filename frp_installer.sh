@@ -149,7 +149,6 @@ configure_client() {
     print_message "Configuring FRP Client (frpc)"
 
     # Prompt for configuration details
-    read -p "Enter server address: " serverAddr
     read -p "Enter server port [default: 7000]: " serverPort
     serverPort=${serverPort:-7000}
 
@@ -192,7 +191,6 @@ configure_client() {
 
     # Write new config
     sudo bash -c "cat > ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
-serverAddr = "$serverAddr"
 serverPort = $serverPort
 transport.protocol = "$transportProtocol"
 EOL
@@ -259,15 +257,18 @@ EOL
 
     print_message "frpc.toml created successfully!"
 
-    echo "Verifying client configuration..."
-    if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc.toml &> /dev/null; then
-        print_message "Client configuration is valid."
-        read -p "Do you want to create and start the frpc service now? [Y/n]: " create_service
-        if [[ "$create_service" != "n" && "$create_service" != "N" ]]; then
-            print_message "Creating and starting frpc service..."
-            sudo bash -c "cat > /etc/systemd/system/frpc.service" <<EOL
+    read -p "Do you want to create and start a frpc service now? [Y/n]: " create_service
+    if [[ "$create_service" != "n" && "$create_service" != "N" ]]; then
+        read -p "Enter the server address for this service instance: " serverAddrForService
+
+        echo "Verifying client configuration for server $serverAddrForService..."
+        if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc.toml --server-addr ${serverAddrForService} &> /dev/null; then
+            print_message "Client configuration is valid."
+            print_message "Creating and starting frpc@${serverAddrForService} service..."
+            
+            sudo bash -c "cat > /etc/systemd/system/frpc@.service" <<EOL
 [Unit]
-Description=FRP Client
+Description=FRP Client for %i
 After=network.target
 
 [Service]
@@ -275,22 +276,23 @@ Type=simple
 User=nobody
 Restart=on-failure
 RestartSec=5s
-ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc.toml
+ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc.toml --server-addr %i
 
 [Install]
 WantedBy=multi-user.target
 EOL
-            echo "frpc.service created."
+            echo "frpc@.service template created."
+            
             sudo systemctl daemon-reload
-            sudo systemctl enable frpc
-            sudo systemctl start frpc
-            print_message "Service frpc status:"
-            sudo systemctl status frpc
+            sudo systemctl enable "frpc@${serverAddrForService}"
+            sudo systemctl start "frpc@${serverAddrForService}"
+            print_message "Service frpc@${serverAddrForService} status:"
+            sudo systemctl status "frpc@${serverAddrForService}"
         else
-            post_setup_feedback "client"
+            print_message "Client configuration is invalid for server ${serverAddrForService}. Please check the settings."
         fi
     else
-        print_message "Client configuration is invalid. Please check the settings."
+        post_setup_feedback "client"
     fi
 }
 
@@ -384,10 +386,15 @@ EOL
 
 manage_service() {
     action=$1
-    read -p "Enter service name (frps or frpc): " service_name
+    read -p "Enter service type (frps/frpc): " service_type
 
-    if [ "$service_name" != "frps" ] && [ "$service_name" != "frpc" ]; then
-        echo "Invalid service name."
+    if [ "$service_type" == "frps" ]; then
+        service_name="frps"
+    elif [ "$service_type" == "frpc" ]; then
+        read -p "Enter the server address for the frpc service instance: " serverAddrForService
+        service_name="frpc@${serverAddrForService}"
+    else
+        echo "Invalid service type."
         return
     fi
 
