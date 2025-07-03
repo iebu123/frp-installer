@@ -195,29 +195,29 @@ EOL
         if [[ "$is_range" == "y" || "$is_range" == "Y" ]]; then
             read -p "Local port range (e.g., 6000-6010): " localPort
             read -p "Remote port range (e.g., 7000-7010): " remotePort
-            range=true
+
+            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+
+{{- range \$_, \$v := parseNumberRangePair "$localPort" "$remotePort" }}
+[[proxies]]
+name = "$proxyType-{{ \$v.First }}"
+type = "$proxyType"
+localIP = "$localIP"
+localPort = {{ \$v.First }}
+remotePort = {{ \$v.Second }}
+{{- end }}
+EOL
         else
             read -p "Local port: " localPort
             read -p "Remote port: " remotePort
-            range=false
-        fi
+            proxyName="proxy-${localPort}-${remotePort}"
 
-        proxyName="proxy-${localPort}-${remotePort}"
-
-        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
 
 [[proxies]]
 name = "$proxyName"
 type = "$proxyType"
 localIP = "$localIP"
-EOL
-        if [ "$range" = true ]; then
-            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
-localPorts = "$localPort"
-remotePorts = "$remotePort"
-EOL
-        else
-            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
 localPort = $localPort
 remotePort = $remotePort
 EOL
