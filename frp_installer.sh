@@ -37,7 +37,7 @@ detect_os_arch() {
 # Helper function to create systemd unit files
 _create_systemd_unit_file() {
     local service_type=$1
-    local server_address_for_client=$2 # Only relevant for frpc
+    local client_name=$2 # Only relevant for frpc
 
     if [ "$service_type" == "frps" ]; then
         sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
@@ -57,9 +57,9 @@ WantedBy=multi-user.target
 EOL
         echo "frps.service created."
     elif [ "$service_type" == "frpc" ]; then
-        sudo bash -c "cat > /etc/systemd/system/frpc@.service" <<EOL
+        sudo bash -c "cat > /etc/systemd/system/frpc-${client_name}.service" <<EOL
 [Unit]
-Description=FRP Client for %i
+Description=FRP Client for ${client_name}
 After=network.target
 
 [Service]
@@ -67,13 +67,12 @@ Type=simple
 User=nobody
 Restart=on-failure
 RestartSec=5s
-ExecStart=/bin/bash -c "sed 's/__SERVER_ADDR__/%i/g' ${FRP_CONFIG_DIR}/frpc.toml > /tmp/frpc_temp_%i.toml && ${FRP_INSTALL_DIR}/frpc -c /tmp/frpc_temp_%i.toml"
-ExecStopPost=/bin/rm -f /tmp/frpc_temp_%i.toml
+ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc-${client_name}.toml
 
 [Install]
 WantedBy=multi-user.target
 EOL
-        echo "frpc@.service template created."
+        echo "frpc-${client_name}.service created."
     fi
 }
 
@@ -117,8 +116,8 @@ configure_server() {
     if [ -f "${FRP_CONFIG_DIR}/frps.toml" ]; then
         sudo mv "${FRP_CONFIG_DIR}/frps.toml" "${FRP_CONFIG_DIR}/frps.toml.bak.$(date +%s)"
         echo "Backed up existing frps.toml to frps.toml.bak.$(date +%s)"
-    fi
 
+    fi
     # Write new config
     sudo bash -c "cat > ${FRP_CONFIG_DIR}/frps.toml" <<EOL
 bindPort = $bindPort
@@ -175,7 +174,10 @@ EOL
 
 # Function to configure frpc
 configure_client() {
-    print_message "Configuring FRP Client (frpc)"
+    local clientName=$1
+    local serverAddr=$2
+
+    print_message "Configuring FRP Client (frpc) for instance: ${clientName}"
 
     # Prompt for configuration details
     read -p "Enter server port [default: 7000]: " serverPort
@@ -213,26 +215,26 @@ configure_client() {
     sudo mkdir -p "$FRP_CONFIG_DIR"
 
     # Backup existing config
-    if [ -f "${FRP_CONFIG_DIR}/frpc.toml" ]; then
-        sudo mv "${FRP_CONFIG_DIR}/frpc.toml" "${FRP_CONFIG_DIR}/frpc.toml.bak.$(date +%s)"
-        echo "Backed up existing frpc.toml to frpc.toml.bak.$(date +%s)"
+    if [ -f "${FRP_CONFIG_DIR}/frpc-${clientName}.toml" ]; then
+        sudo mv "${FRP_CONFIG_DIR}/frpc-${clientName}.toml" "${FRP_CONFIG_DIR}/frpc-${clientName}.toml.bak.$(date +%s)"
+        echo "Backed up existing frpc-${clientName}.toml to frpc-${clientName}.toml.bak.$(date +%s)"
     fi
 
     # Write new config
-    sudo bash -c "cat > ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
-serverAddr = "__SERVER_ADDR__"
+    sudo bash -c "cat > ${FRP_CONFIG_DIR}/frpc-${clientName}.toml" <<EOL
+serverAddr = "${serverAddr}"
 serverPort = $serverPort
 transport.protocol = "$transportProtocol"
 EOL
 
     if [ -n "$authToken" ]; then
-        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc-${clientName}.toml" <<EOL
 auth.token = "$authToken"
 EOL
     fi
 
     if [[ "$enableAdminUI" == "y" || "$enableAdminUI" == "Y" ]]; then
-        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc-${clientName}.toml" <<EOL
 webServer.addr = "0.0.0.0"
 webServer.port = $adminUIPort
 webServer.user = "$adminUIUser"
@@ -257,7 +259,7 @@ EOL
             read -p "Local port range (e.g., 6000-6010): " localPort
             read -p "Remote port range (e.g., 7000-7010): " remotePort
 
-            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc-${clientName}.toml" <<EOL
 
 {{- range \$_, \$v := parseNumberRangePair "$localPort" "$remotePort" }}
 [[proxies]]
@@ -273,7 +275,7 @@ EOL
             read -p "Remote port: " remotePort
             proxyName="proxy-${localPort}-${remotePort}"
 
-            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc-${clientName}.toml" <<EOL
 
 [[proxies]]
 name = "$proxyName"
@@ -285,26 +287,24 @@ EOL
         fi
     done
 
-    print_message "frpc.toml created successfully!"
+    print_message "frpc-${clientName}.toml created successfully!"
 
-    read -p "Do you want to create and start a frpc service now? [Y/n]: " create_service
+    read -p "Do you want to create and start the frpc-${clientName} service now? [Y/n]: " create_service
     if [[ "$create_service" != "n" && "$create_service" != "N" ]]; then
-        read -p "Enter the server address for this service instance: " serverAddrForService
-
-        echo "Verifying client configuration for server $serverAddrForService..."
-        if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc.toml &> /dev/null; then
+        echo "Verifying client configuration for ${clientName}..."
+        if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc-${clientName}.toml &> /dev/null; then
             print_message "Client configuration is valid."
-            print_message "Creating and starting frpc@${serverAddrForService} service..."
+            print_message "Creating and starting frpc-${clientName} service..."
             
-            _create_systemd_unit_file "frpc" "$serverAddrForService"
+            _create_systemd_unit_file "frpc" "${clientName}"
             
             sudo systemctl daemon-reload
-            sudo systemctl enable "frpc@${serverAddrForService}"
-            sudo systemctl start "frpc@${serverAddrForService}"
-            print_message "Service frpc@${serverAddrForService} status:"
-            sudo systemctl status "frpc@${serverAddrForService}"
+            sudo systemctl enable "frpc-${clientName}"
+            sudo systemctl start "frpc-${clientName}"
+            print_message "Service frpc-${clientName} status:"
+            sudo systemctl status "frpc-${clientName}"
         else
-            print_message "Client configuration is invalid for server ${serverAddrForService}. Please check the settings."
+            print_message "Client configuration is invalid for ${clientName}. Please check the settings."
         fi
     else
         post_setup_feedback "client"
@@ -319,45 +319,26 @@ manage_services() {
         echo "        Service Management"
         echo "====================================="
         echo "1. Create systemd services"
-        echo "2. Create new client service instance"
-        echo "3. Start a service"
-        echo "4. Stop a service"
-        echo "5. Restart a service"
-        echo "6. Check service status"
-        echo "7. View service logs"
-        echo "8. Back to main menu"
+        echo "2. Start a service"
+        echo "3. Stop a service"
+        echo "4. Restart a service"
+        echo "5. Check service status"
+        echo "6. View service logs"
+        echo "7. Back to main menu"
         echo "-------------------------------------"
-        read -p "Enter your choice [1-8]: " service_choice
+        read -p "Enter your choice [1-7]: " service_choice
 
         case $service_choice in
             1) create_systemd_services ;;
-            2) create_new_client_service_instance ;;
-            3) manage_service "start" ;;
-            4) manage_service "stop" ;;
-            5) manage_service "restart" ;;
-            6) manage_service "status" ;;
-            7) manage_service "logs" ;;
-            8) break ;;
+            2) manage_service "start" ;;
+            3) manage_service "stop" ;;
+            4) manage_service "restart" ;;
+            5) manage_service "status" ;;
+            6) manage_service "logs" ;;
+            7) break ;;
             *) echo "Invalid option. Please try again." ;;
         esac
     done
-}
-
-create_new_client_service_instance() {
-    print_message "Creating new client service instance"
-    read -p "Enter the server IP for the new client service instance: " serverAddrForService
-
-    if [ -z "$serverAddrForService" ]; then
-        echo "Server IP cannot be empty. Aborting."
-        return 1
-    fi
-
-    echo "Enabling and starting frpc@${serverAddrForService} service..."
-    sudo systemctl daemon-reload
-    sudo systemctl enable "frpc@${serverAddrForService}"
-    sudo systemctl start "frpc@${serverAddrForService}"
-    print_message "Service frpc@${serverAddrForService} status:"
-    sudo systemctl status "frpc@${serverAddrForService}"
 }
 
 create_systemd_services() {
@@ -366,7 +347,23 @@ create_systemd_services() {
     while true; do
         read -p "Which service do you want to create? (server/client): " service_to_create
         case "$service_to_create" in
-            server|client)
+            server)
+                _create_systemd_unit_file "frps"
+                break
+                ;;
+            client)
+                read -p "Enter a unique name for this client instance (e.g., myclient_server_ip): " clientName
+                if [ -z "$clientName" ]; then
+                    echo "Client name cannot be empty. Aborting."
+                    return 1
+                fi
+                read -p "Enter the server IP for this client instance: " serverAddr
+                if [ -z "$serverAddr" ]; then
+                    echo "Server IP cannot be empty. Aborting."
+                    return 1
+                fi
+                # Call configure_client to handle config and service creation
+                configure_client "$clientName" "$serverAddr"
                 break
                 ;;
             *)
@@ -374,12 +371,6 @@ create_systemd_services() {
                 ;;
         esac
     done
-
-    if [ "$service_to_create" == "server" ]; then
-        _create_systemd_unit_file "frps"
-    elif [ "$service_to_create" == "client" ]; then
-        _create_systemd_unit_file "frpc"
-    fi
 
     sudo systemctl daemon-reload
     print_message "Systemd service creation process finished."
@@ -393,8 +384,21 @@ manage_service() {
     if [ "$service_type" == "frps" ]; then
         service_name="frps"
     elif [ "$service_type" == "frpc" ]; then
-        read -p "Enter the server address for the frpc service instance: " serverAddrForService
-        service_name="frpc@${serverAddrForService}"
+        echo "Available frpc services:"
+        mapfile -t frpc_services < <(sudo systemctl list-units --type=service --all | grep -oP 'frpc-\K[^.]+' | sort -u)
+        if [ ${#frpc_services[@]} -eq 0 ]; then
+            echo "No frpc services found."
+            return
+        fi
+
+        select service_instance in "${frpc_services[@]}"; do
+            if [ -n "$service_instance" ]; then
+                service_name="frpc-${service_instance}"
+                break
+            else
+                echo "Invalid selection. Please try again."
+            fi
+        done
     else
         echo "Invalid service type."
         return

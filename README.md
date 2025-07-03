@@ -24,12 +24,12 @@ bash <(curl -sSL https://raw.githubusercontent.com/iebu123/frp-installer/main/fr
 
 1.  **Downloads compiled FRP tunnel files:** Saves them to `/usr/local/bin`.
 2.  **Creates configuration files for FRP:** These are located in the `/etc/frp` directory.
-3.  **Creates systemd services:** Launches the tunnel using the generated configurations. The service files are stored in `/etc/systemd/system/frpc@.service` or `frps.service`.
-4.  **Templated service files:** The created service files are templated, allowing you to reuse them to tunnel to multiple servers with identical configurations.
+3.  **Creates systemd services:** Launches the tunnel using the generated configurations. The service files are stored in `/etc/systemd/system/frps.service` for the server and `/etc/systemd/system/frpc-<custom_name>.service` for each client instance.
+4.  **Dedicated client service files:** Each client service is created with a unique name, allowing for independent management and configuration for different server connections.
 
-To view the list of created tunnels, run the following command:
+To view the list of created client tunnels, run the following command:
 ```bash
-systemctl list-units --type=service | grep frpc@
+systemctl list-units --type=service | grep frpc-@
 ```
 
 ## Requirements
