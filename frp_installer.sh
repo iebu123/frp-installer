@@ -108,6 +108,14 @@ EOL
     fi
 
     print_message "frps.toml created successfully!"
+
+    echo "Verifying server configuration..."
+    if sudo ${FRP_INSTALL_DIR}/frps verify -c ${FRP_CONFIG_DIR}/frps.toml &> /dev/null; then
+        print_message "Server configuration is valid."
+    else
+        print_message "Server configuration is invalid. Please check the settings."
+    fi
+
     post_setup_feedback "server"
 }
 
@@ -225,6 +233,14 @@ EOL
     done
 
     print_message "frpc.toml created successfully!"
+
+    echo "Verifying client configuration..."
+    if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc.toml &> /dev/null; then
+        print_message "Client configuration is valid."
+    else
+        print_message "Client configuration is invalid. Please check the settings."
+    fi
+
     post_setup_feedback "client"
 }
 
