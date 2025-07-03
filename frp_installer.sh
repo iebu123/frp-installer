@@ -191,6 +191,7 @@ configure_client() {
 
     # Write new config
     sudo bash -c "cat > ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+serverAddr = "__SERVER_ADDR__"
 serverPort = $serverPort
 transport.protocol = "$transportProtocol"
 EOL
@@ -262,7 +263,7 @@ EOL
         read -p "Enter the server address for this service instance: " serverAddrForService
 
         echo "Verifying client configuration for server $serverAddrForService..."
-        if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc.toml --server-addr ${serverAddrForService} &> /dev/null; then
+        if sudo ${FRP_INSTALL_DIR}/frpc verify -c ${FRP_CONFIG_DIR}/frpc.toml &> /dev/null; then
             print_message "Client configuration is valid."
             print_message "Creating and starting frpc@${serverAddrForService} service..."
             
@@ -276,7 +277,7 @@ Type=simple
 User=nobody
 Restart=on-failure
 RestartSec=5s
-ExecStart=${FRP_INSTALL_DIR}/frpc -c ${FRP_CONFIG_DIR}/frpc.toml --server-addr %i
+ExecStart=/bin/bash -c "sed 's/__SERVER_ADDR__/%i/g' ${FRP_CONFIG_DIR}/frpc.toml | ${FRP_INSTALL_DIR}/frpc -c /dev/stdin"
 
 [Install]
 WantedBy=multi-user.target
