@@ -319,26 +319,45 @@ manage_services() {
         echo "        Service Management"
         echo "====================================="
         echo "1. Create systemd services"
-        echo "2. Start a service"
-        echo "3. Stop a service"
-        echo "4. Restart a service"
-        echo "5. Check service status"
-        echo "6. View service logs"
-        echo "7. Back to main menu"
+        echo "2. Create new client service instance"
+        echo "3. Start a service"
+        echo "4. Stop a service"
+        echo "5. Restart a service"
+        echo "6. Check service status"
+        echo "7. View service logs"
+        echo "8. Back to main menu"
         echo "-------------------------------------"
-        read -p "Enter your choice [1-7]: " service_choice
+        read -p "Enter your choice [1-8]: " service_choice
 
         case $service_choice in
             1) create_systemd_services ;;
-            2) manage_service "start" ;;
-            3) manage_service "stop" ;;
-            4) manage_service "restart" ;;
-            5) manage_service "status" ;;
-            6) manage_service "logs" ;;
-            7) break ;;
+            2) create_new_client_service_instance ;;
+            3) manage_service "start" ;;
+            4) manage_service "stop" ;;
+            5) manage_service "restart" ;;
+            6) manage_service "status" ;;
+            7) manage_service "logs" ;;
+            8) break ;;
             *) echo "Invalid option. Please try again." ;;
         esac
     done
+}
+
+create_new_client_service_instance() {
+    print_message "Creating new client service instance"
+    read -p "Enter the server IP for the new client service instance: " serverAddrForService
+
+    if [ -z "$serverAddrForService" ]; then
+        echo "Server IP cannot be empty. Aborting."
+        return 1
+    fi
+
+    echo "Enabling and starting frpc@${serverAddrForService} service..."
+    sudo systemctl daemon-reload
+    sudo systemctl enable "frpc@${serverAddrForService}"
+    sudo systemctl start "frpc@${serverAddrForService}"
+    print_message "Service frpc@${serverAddrForService} status:"
+    sudo systemctl status "frpc@${serverAddrForService}"
 }
 
 create_systemd_services() {
@@ -359,8 +378,7 @@ create_systemd_services() {
     if [ "$service_to_create" == "server" ]; then
         _create_systemd_unit_file "frps"
     elif [ "$service_to_create" == "client" ]; then
-        read -p "Enter the server IP for the client service: " server_ip_for_client
-        _create_systemd_unit_file "frpc" "$server_ip_for_client"
+        _create_systemd_unit_file "frpc"
     fi
 
     sudo systemctl daemon-reload
