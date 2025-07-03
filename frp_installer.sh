@@ -34,7 +34,51 @@ detect_os_arch() {
 
 # --- Main Functions ---
 
+# Helper function to create systemd unit files
+_create_systemd_unit_file() {
+    local service_type=$1
+    local server_address_for_client=$2 # Only relevant for frpc
+
+    if [ "$service_type" == "frps" ]; then
+        sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
+[Unit]
+Description=FRP Server
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Restart=on-failure
+RestartSec=5s
+ExecStart=${FRP_INSTALL_DIR}/frps -c ${FRP_CONFIG_DIR}/frps.toml
+
+[Install]
+WantedBy=multi-user.target
+EOL
+        echo "frps.service created."
+    elif [ "$service_type" == "frpc" ]; then
+        sudo bash -c "cat > /etc/systemd/system/frpc@.service" <<EOL
+[Unit]
+Description=FRP Client for %i
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Restart=on-failure
+RestartSec=5s
+ExecStart=/bin/bash -c "sed 's/__SERVER_ADDR__/%i/g' ${FRP_CONFIG_DIR}/frpc.toml > /tmp/frpc_temp_%i.toml && ${FRP_INSTALL_DIR}/frpc -c /tmp/frpc_temp_%i.toml"
+ExecStopPost=/bin/rm -f /tmp/frpc_temp_%i.toml
+
+[Install]
+WantedBy=multi-user.target
+EOL
+        echo "frpc@.service template created."
+    fi
+}
+
 # Function to configure frps
+
 configure_server() {
     print_message "Configuring FRP Server (frps)"
 
@@ -115,22 +159,7 @@ EOL
         read -p "Do you want to create and start the frps service now? [Y/n]: " create_service
         if [[ "$create_service" != "n" && "$create_service" != "N" ]]; then
             print_message "Creating and starting frps service..."
-            sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
-[Unit]
-Description=FRP Server
-After=network.target
-
-[Service]
-Type=simple
-User=nobody
-Restart=on-failure
-RestartSec=5s
-ExecStart=${FRP_INSTALL_DIR}/frps -c ${FRP_CONFIG_DIR}/frps.toml
-
-[Install]
-WantedBy=multi-user.target
-EOL
-            echo "frps.service created."
+            _create_systemd_unit_file "frps"
             sudo systemctl daemon-reload
             sudo systemctl enable frps
             sudo systemctl start frps
@@ -267,22 +296,7 @@ EOL
             print_message "Client configuration is valid."
             print_message "Creating and starting frpc@${serverAddrForService} service..."
             
-            sudo bash -c "cat > /etc/systemd/system/frpc@.service" <<EOL
-[Unit]
-Description=FRP Client for %i
-After=network.target
-
-[Service]
-Type=simple
-User=nobody
-Restart=on-failure
-RestartSec=5s
-ExecStart=/bin/bash -c "sed 's/__SERVER_ADDR__/%i/g' ${FRP_CONFIG_DIR}/frpc.toml | ${FRP_INSTALL_DIR}/frpc -c /dev/stdin"
-
-[Install]
-WantedBy=multi-user.target
-EOL
-            echo "frpc@.service template created."
+            _create_systemd_unit_file "frpc" "$serverAddrForService"
             
             sudo systemctl daemon-reload
             sudo systemctl enable "frpc@${serverAddrForService}"
@@ -343,48 +357,14 @@ create_systemd_services() {
     done
 
     if [ "$service_to_create" == "server" ]; then
-        # frps.service
-        sudo bash -c "cat > /etc/systemd/system/frps.service" <<EOL
-[Unit]
-Description=FRP Server
-After=network.target
-
-[Service]
-Type=simple
-User=nobody
-Restart=on-failure
-RestartSec=5s
-ExecStart=${FRP_INSTALL_DIR}/frps -c ${FRP_CONFIG_DIR}/frps.toml
-
-[Install]
-WantedBy=multi-user.target
-EOL
-        echo "frps.service created."
+        _create_systemd_unit_file "frps"
     elif [ "$service_to_create" == "client" ]; then
-        # frpc.service
-        sudo bash -c "cat > /etc/systemd/system/frpc.service" <<EOL
-[Unit]
-Description=FRP Client
-After=network.target
-
-[Service]
-Type=simple
-User=nobody
-Restart=on-failure
-RestartSec=5s
-ExecStart=/bin/bash -c "sed 's/__SERVER_ADDR__/%i/g' ${FRP_CONFIG_DIR}/frpc.toml > /tmp/frpc_temp_%i.toml && ${FRP_INSTALL_DIR}/frpc -c /tmp/frpc_temp_%i.toml"
-ExecStopPost=/bin/rm -f /tmp/frpc_temp_%i.toml
-
-[Install]
-WantedBy=multi-user.target
-EOL
-        echo "frpc.service created."
+        _create_systemd_unit_file "frpc"
     fi
 
     sudo systemctl daemon-reload
     print_message "Systemd service creation process finished."
     echo "You can now enable and start the service."
-}
 
 manage_service() {
     action=$1
