@@ -1,5 +1,7 @@
 # FRP Installer and Management Script
 
+[Persian README (راهنمای فارسی)](README_fa.md)
+
 This script provides an interactive and automated way to install, configure, and manage `frp` (a fast reverse proxy) on your system. It simplifies the setup of both the `frp` server (`frps`) and client (`frpc`).
 
 ## Quick Start
