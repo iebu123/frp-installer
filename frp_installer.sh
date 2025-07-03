@@ -128,8 +128,16 @@ configure_client() {
         authToken=""
     fi
 
-    read -p "Enter transport protocol (tcp, kcp, quic) [default: tcp]: " transportProtocol
-    transportProtocol=${transportProtocol:-tcp}
+    echo "Select transport protocol:"
+    echo "  1. tcp (default)"
+    echo "  2. kcp"
+    echo "  3. quic"
+    read -p "Enter your choice [1-3]: " protocol_choice
+    case $protocol_choice in
+        2) transportProtocol="kcp" ;;
+        3) transportProtocol="quic" ;;
+        *) transportProtocol="tcp" ;;
+    esac
 
     read -p "Enable Admin UI? [y/N]: " enableAdminUI
     if [[ "$enableAdminUI" == "y" || "$enableAdminUI" == "Y" ]]; then
@@ -139,14 +147,6 @@ configure_client() {
         read -s -p "Enter Admin UI password: " adminUIPassword
         echo
     fi
-
-    print_message "Define a proxy"
-    read -p "Proxy type (tcp, udp, http, https) [default: tcp]: " proxyType
-    proxyType=${proxyType:-tcp}
-    read -p "Local IP [default: 127.0.0.1]: " localIP
-    localIP=${localIP:-127.0.0.1}
-    read -p "Local port: " localPort
-    read -p "Remote port: " remotePort
 
     # Create config directory if it doesn't exist
     sudo mkdir -p "$FRP_CONFIG_DIR"
@@ -179,15 +179,49 @@ webServer.password = "$adminUIPassword"
 EOL
     fi
 
-    sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+    while true; do
+        print_message "Define a proxy"
+        read -p "Add a new proxy? [Y/n]: " add_proxy
+        if [[ "$add_proxy" == "n" || "$add_proxy" == "N" ]]; then
+            break
+        fi
+
+        read -p "Proxy name: " proxyName
+        read -p "Proxy type (tcp, udp, http, https) [default: tcp]: " proxyType
+        proxyType=${proxyType:-tcp}
+        read -p "Local IP [default: 127.0.0.1]: " localIP
+        localIP=${localIP:-127.0.0.1}
+
+        read -p "Configure a port range? [y/N]: " is_range
+        if [[ "$is_range" == "y" || "$is_range" == "Y" ]]; then
+            read -p "Local port range (e.g., 6000-6010): " localPort
+            read -p "Remote port range (e.g., 7000-7010): " remotePort
+            range=true
+        else
+            read -p "Local port: " localPort
+            read -p "Remote port: " remotePort
+            range=false
+        fi
+
+        sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
 
 [[proxies]]
-name = "${proxyType}-proxy"
+name = "$proxyName"
 type = "$proxyType"
 localIP = "$localIP"
+EOL
+        if [ "$range" = true ]; then
+            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
+localPorts = "$localPort"
+remotePorts = "$remotePort"
+EOL
+        else
+            sudo bash -c "cat >> ${FRP_CONFIG_DIR}/frpc.toml" <<EOL
 localPort = $localPort
 remotePort = $remotePort
 EOL
+        fi
+    done
 
     print_message "frpc.toml created successfully!"
     post_setup_feedback "client"
