@@ -365,6 +365,7 @@ create_systemd_services() {
     sudo systemctl daemon-reload
     print_message "Systemd service creation process finished."
     echo "You can now enable and start the service."
+}
 
 manage_service() {
     action=$1
