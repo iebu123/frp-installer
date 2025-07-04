@@ -77,7 +77,6 @@ EOL
 }
 
 # Function to configure frps
-
 configure_server() {
     print_message "Configuring FRP Server (frps)"
 
@@ -431,6 +430,64 @@ manage_service() {
     esac
 }
 
+
+# Function to set up automatic service reset
+setup_auto_reset() {
+    print_message "Setting up Automatic Service Reset"
+
+    # 1. Generate the reset script
+    local reset_script_path="/etc/frp/reset_frp_services.sh"
+    print_message "Generating reset script at $reset_script_path"
+
+    sudo bash -c "cat > $reset_script_path" <<'EOL'
+#!/bin/bash
+echo "Restarting frps service..."
+systemctl restart frps
+
+echo "Restarting frpc services..."
+for service in $(systemctl list-units --type=service --all 'frpc-*.service' --no-legend | awk '{print $1}'); do
+    echo "Restarting $service"
+    systemctl restart "$service"
+done
+
+echo "FRP services reset successfully."
+EOL
+
+    sudo chmod +x "$reset_script_path"
+    print_message "Reset script created and made executable."
+
+    # 2. Set up cron job
+    print_message "Setting up cron job for automatic reset"
+
+    echo "Choose the reset frequency:"
+    echo "  1. Daily"
+    echo "  2. Weekly"
+    echo "  3. Monthly"
+    read -p "Enter your choice [1-3, default: 1]: " freq_choice
+    freq_choice=${freq_choice:-1}
+
+    local cron_schedule
+    case $freq_choice in
+        1) cron_schedule="0 0 * * *" ;;
+        2) cron_schedule="0 0 * * 0" ;;
+        3) cron_schedule="0 0 1 * *" ;;
+        *)
+            echo "Invalid choice. Defaulting to Daily."
+            cron_schedule="0 0 * * *"
+            ;;
+    esac
+
+    # Remove previous cron job created by this script to avoid duplicates
+    (crontab -l 2>/dev/null | grep -v "# frp-installer auto-reset") | crontab -
+
+    # Add new cron job
+    (crontab -l 2>/dev/null; echo "$cron_schedule $reset_script_path # frp-installer auto-reset") | crontab -
+
+    print_message "Cron job for automatic reset has been set up."
+    echo "Current cron jobs:"
+    crontab -l
+}
+
 # Function to provide post-setup feedback
 post_setup_feedback() {
     type=$1
@@ -526,18 +583,20 @@ show_menu() {
 ║   2. Configure Server (frps)                         ║
 ║   3. Configure Client (frpc)                         ║
 ║   4. Manage Services                                 ║
-║   5. Exit                                            ║
+║   5. Set up automatic service reset                  ║
+║   6. Exit                                            ║
 ║                                                      ║
 ╚══════════════════════════════════════════════════════╝
         '
-        read -p "   Enter your choice [1-5]: " choice
+        read -p "   Enter your choice [1-6]: " choice
 
         case $choice in
             1) install_update_frp ;;
             2) configure_server ;;
             3) configure_client ;;
             4) manage_services ;;
-            5) exit 0 ;;
+            5) setup_auto_reset ;;
+            6) exit 0 ;;
             *) echo "Invalid option. Please try again." ;;
         esac
     done

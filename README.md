@@ -18,6 +18,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/iebu123/frp-installer/main/fr
 -   **Interactive Configuration:** Guides you through the process of configuring both `frps` and `frpc` with a user-friendly menu.
 -   **Configuration Validation:** Verifies the generated configuration files to ensure they are valid.
 -   **Systemd Service Management:** Creates and manages `systemd` services for `frps` and `frpc`, allowing you to easily start, stop, restart, and check the status of the services.
+-   **Automatic Service Reset:** Set up a cron job to automatically reset `frp` services daily, weekly, or monthly to ensure they are always running smoothly.
 -   **Proxy Management:** Easily add and manage proxies for the `frpc` client, with support for single ports and port ranges.
 -   **Automatic Proxy Naming:** Automatically generates proxy names based on the ports, simplifying the configuration process.
 -   **User-Friendly Interface:** A clear and visually appealing menu-driven interface for easy navigation and operation.
@@ -28,6 +29,7 @@ bash <(curl -sSL https://raw.githubusercontent.com/iebu123/frp-installer/main/fr
 2.  **Creates configuration files for FRP:** These are located in the `/etc/frp` directory.
 3.  **Creates systemd services:** Launches the tunnel using the generated configurations. The service files are stored in `/etc/systemd/system/frps.service` for the server and `/etc/systemd/system/frpc-<custom_name>.service` for each client instance.
 4.  **Dedicated client service files:** Each client service is created with a unique name, allowing for independent management and configuration for different server connections.
+5.  **(Optional) Automatic Service Reset:** Creates a cron job to automatically restart all `frp` services at a specified frequency (daily, weekly, or monthly).
 
 To view the list of created client tunnels, run the following command:
 ```bash
@@ -46,6 +48,7 @@ To view the last 50 lines of logs for a service:
 -   `bash`
 -   `curl`
 -   `sudo` privileges
+-   `cron` (for the automatic service reset feature)
 
 ## Usage
 
@@ -66,6 +69,7 @@ To set up your FRP tunnel, follow these steps:
 2.  **Configure the server and client** (Options 2 and 3 in the main menu):
     *   First, configure the server (e.g., located inside Iran, China, etc.), then create and start its service.
     *   Next, configure the client (e.g., on a server outside the country, with no restrictions).
+3.  **(Optional) Set up automatic service reset** (Option 5 in the main menu) to ensure the services remain active.
 
 To add a second, third, or additional client service for other servers: 
 
@@ -79,7 +83,8 @@ The script presents a menu with the following options:
 2.  **Configure Server (frps):** Guides you through the process of creating a configuration file for the `frp` server.
 3.  **Configure Client (frpc):** Guides you through the process of creating a configuration file for the `frp` client.
 4.  **Manage Services:** Provides a submenu to manage the `systemd` services for `frps` and `frpc`.
-5.  **Exit:** Exits the script.
+5.  **Set up automatic service reset:** Creates a cron job to automatically restart all `frp` services.
+6.  **Exit:** Exits the script.
 
 ## Configuration
 
