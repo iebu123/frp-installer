@@ -443,23 +443,57 @@ manage_service() {
 setup_auto_reset() {
     print_message "Setting up Automatic Service Reset"
 
+    read -p "Set up auto-reset for server or client? (server/client): " reset_choice
+    if [[ "$reset_choice" != "server" && "$reset_choice" != "client" ]]; then
+        echo "Invalid choice. Aborting."
+        return
+    fi
+
     # 1. Generate the reset script
     local reset_script_path="/etc/frp/reset_frp_services.sh"
-    print_message "Generating reset script at $reset_script_path"
+    print_message "Generating reset script for $reset_choice at $reset_script_path"
 
-    sudo bash -c "cat > $reset_script_path" <<'EOL'
+    if [ "$reset_choice" == "server" ]; then
+        sudo bash -c "cat > $reset_script_path" <<'EOL'
 #!/bin/bash
+echo "Killing any running frps processes to ensure a clean restart..."
+pkill -f frps
+
+echo "Reloading systemd manager configuration..."
+systemctl daemon-reload
+
 echo "Restarting frps service..."
 systemctl restart frps
 
-echo "Restarting frpc services..."
+echo "frps service reset successfully."
+
+# This next command will permanently delete older log entries to reduce the journal size to 1MB.
+# This is useful for managing disk space, but be aware that it erases historical log data.
+echo "Reducing journal log size to 500MB..."
+journalctl --vacuum-size=500M
+EOL
+    else # client
+        sudo bash -c "cat > $reset_script_path" <<'EOL'
+#!/bin/bash
+echo "Killing any running frpc processes to ensure a clean restart..."
+pkill -f frpc
+
+echo "Reloading systemd manager configuration..."
+systemctl daemon-reload
+
+echo "Restarting all frpc services..."
 for service in $(systemctl list-units --type=service --all 'frpc-*.service' --no-legend | awk '{print $1}'); do
     echo "Restarting $service"
     systemctl restart "$service"
 done
+echo "FRP client services reset successfully."
 
-echo "FRP services reset successfully."
+# This next command will permanently delete older log entries to reduce the journal size to 1MB.
+# This is useful for managing disk space, but be aware that it erases historical log data.
+echo "Reducing journal log size to 500MB..."
+journalctl --vacuum-size=500M
 EOL
+    fi
 
     sudo chmod +x "$reset_script_path"
     print_message "Reset script created and made executable."
@@ -468,17 +502,21 @@ EOL
     print_message "Setting up cron job for automatic reset"
 
     echo "Choose the reset frequency:"
-    echo "  1. Daily"
-    echo "  2. Weekly"
-    echo "  3. Monthly"
-    read -p "Enter your choice [1-3, default: 1]: " freq_choice
-    freq_choice=${freq_choice:-1}
+    echo "  1. Every 5 minutes"
+    echo "  2. Every 10 minutes"
+    echo "  3. Every 20 minutes"
+    echo "  4. Every 30 minutes"
+    echo "  5. Hourly"
+    read -p "Enter your choice [1-5, default: 3]: " freq_choice
+    freq_choice=${freq_choice:-3}
 
     local cron_schedule
     case $freq_choice in
-        1) cron_schedule="0 0 * * *" ;;
-        2) cron_schedule="0 0 * * 0" ;;
-        3) cron_schedule="0 0 1 * *" ;;
+        1) cron_schedule="*/5 * * * *" ;;
+        2) cron_schedule="*/10 * * * *" ;;
+        3) cron_schedule="*/20 * * * *" ;;
+        4) cron_schedule="*/30 * * * *" ;;
+        5) cron_schedule="0 * * * *" ;;
         *)
             echo "Invalid choice. Defaulting to Daily."
             cron_schedule="0 0 * * *"
