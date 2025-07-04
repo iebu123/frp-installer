@@ -294,6 +294,10 @@ localPort = {{ \$v.First }}
 remotePort = {{ \$v.Second }}
 loadBalancer.group = "group-$clientName-{{ \$v.First }}"
 loadBalancer.groupKey = "group-$clientName-{{ \$v.First }}"
+healthCheck.type = "tcp"
+healthCheck.timeoutSeconds = 3
+healthCheck.maxFailed = 3
+healthCheck.intervalSeconds = 10
 {{- end }}
 EOL
         else
@@ -311,6 +315,10 @@ localPort = $localPort
 remotePort = $remotePort
 loadBalancer.group = "group-$clientName-$localPort"
 loadBalancer.groupKey = "group-$clientName-$localPort"
+healthCheck.type = "tcp"
+healthCheck.timeoutSeconds = 3
+healthCheck.maxFailed = 3
+healthCheck.intervalSeconds = 10
 EOL
         fi
     done
