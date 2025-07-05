@@ -23,3 +23,10 @@ This document outlines the development phases for the interactive FRP installer 
 *   Add post-setup feedback to display dashboard URLs and status.
 *   Enhance script robustness with improved error handling and input validation.
 *   Ensure all non-functional requirements from the PRD are met, such as idempotency and security best practices.
+
+## Future Features
+
+- Check if a port is available before assigning it (e.g., dashboard or server tunnel port).
+- After creating a service (either after configuration or direct creation), automatically start it and set up a cron job for periodic restart or health checks.
+- Add support for uninstalling FRP and cleaning up all related files and services.
+- Implement an update checker to notify users of new FRP releases.
